@@ -6,7 +6,7 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.nn.parameter as Parameter
-from elasticity_op import elasticity, OptimizeElasticity
+from elasticity_op import elasticity, OptimizeElasticity, elastic_linear
 import matplotlib.pyplot as plt
 import pickle
 
@@ -71,6 +71,28 @@ class ElephantNet(nn.Module):
         # x = self.fc4(x)
         return x
 
+class ElephantNet2(nn.Module):
+    def __init__(self):
+        super(ElephantNet2, self).__init__()
+        
+        self.fc1 = elastic_linear(28 * 28, 256)
+        self.fc2 = elastic_linear(256, 128)
+        self.fc3 = elastic_linear(128, 128)
+        self.fc4 = elastic_linear(128, 10)
+        
+        self.done_training = False
+
+    def forward(self, x):
+        x = x.view(-1, 28 * 28)
+        x = F.relu(self.fc1(x))
+        # x = F.dropout(x, p=0.450,  training=not self.done_training)
+        x = F.relu(self.fc2(x))
+        # x = F.dropout(x, p=0.450,  training=not self.done_training)
+        x = F.relu(self.fc3(x))
+        # x = F.dropout(x, p=0.80,  training=not self.done_training)
+        x = F.log_softmax(self.fc4(x))
+        return x
+
 
 def data_generator(**kwargs):
     train_loader = torch.utils.data.DataLoader(
@@ -106,15 +128,15 @@ def data_generator(**kwargs):
 
 def train():
     classes = data_generator()
-    model = ElephantNet()
+    model = ElephantNet2()
 
     model.cuda()
 
-    neuron_weights = (param for name, param in model.named_parameters() if not name.startswith("elastic"))
-    elasticity_values = (param for name, param in model.named_parameters() if name.startswith("elastic"))
+    neuron_weights = (param for name, param in model.named_parameters() if not name.endswith("psi"))
+    elasticity_values = (param for name, param in model.named_parameters() if name.endswith("psi"))
 
-    eOptimizer = OptimizeElasticity(elasticity_values, gamma=0.99, lr=0.01)
-    optimizer = optim.SGD(neuron_weights, lr=LR, momentum=0.5)
+    eOptimizer = OptimizeElasticity(elasticity_values, gamma=0.05, lr=0.95)
+    optimizer = optim.SGD(neuron_weights, lr=LR, momentum=0.5, nesterov=True)
 
     label_arange = torch.arange(0, 10)
 
@@ -122,6 +144,10 @@ def train():
     accuracy = 0
     colors = ["b", "r", "g", "c", "m"]
     for bonus, addition in enumerate((2, 4, 6, 8, 10, 2, 4, 6, 8, 10)):
+
+        if bonus < 6:
+            psi_list = [psi for name, psi in model.named_parameters() if name.endswith("weight.psi")]
+            psi_histogram(psi_list)
 
         model.done_training = bonus > 4
         for i in range(ITERATION):
@@ -241,6 +267,15 @@ def weight_histogram(name="visual_v2"):
         subplot_number += 1
         plt.subplot(subplot_number)
         plt.bar(np.arange(w.shape[0]), np.sort(np.abs(w)))
+    plt.show()
+
+def psi_histogram(psi_list):
+    plt.close()
+    subplot_number = 10 + 100*len(psi_list)
+    for psi in psi_list:
+        subplot_number += 1
+        plt.subplot(subplot_number)
+        plt.bar(np.arange(psi.size()[0]), np.sort(psi.cpu().data.numpy()))
     plt.show()
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from elasticity_op import elastic, elasticity, OptimizeElasticity, relevance_elastic
+from elasticity_op import elastic, elasticity, OptimizeElasticity, relevance_elastic, elastic_linear
 import torch
 
 
@@ -13,6 +13,14 @@ class Net(torch.nn.Module):
         print(type(a))
         print(type(x))
         return self.e1(a)
+
+class Net2(torch.nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Net2, self).__init__()
+        self.fc = elastic_linear(input_dim, output_dim)
+
+    def forward(self, x):
+        return self.fc(x)
 
 def test_elastic():
     input = torch.autograd.Variable(torch.Tensor(2, 10), requires_grad=True)
@@ -43,8 +51,21 @@ def test_optimization():
     opt.step(is_abs=True)
     print(next(model.parameters()))
     
+def test_weigt_only_elastic():
+
+    input = torch.autograd.Variable(torch.ones(2, 4), requires_grad=True)
+    incomming_grad = torch.ones(2, 3)*-3.0
+    model = Net2(4, 3)
+
+    out = model(input)
+    out.backward(incomming_grad)
+
+    print(model.fc.elastic_weight.psi.grad)
+    print(model.fc.weight.grad)
+    print(model.fc.elastic_bias.psi.grad)
 
 if __name__ == "__main__":
     # test_elastic()
     # test_elasticity()
-    test_optimization()
+    # test_optimization()
+    test_weigt_only_elastic()
