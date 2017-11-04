@@ -43,7 +43,7 @@ class weight_only_elastic(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         psi, = ctx.saved_variables
-        elasticity_function = torch.clamp(1.0*torch.abs(psi), 0.0, 1.0).view(-1, 1)
+        elasticity_function = 1.0 -torch.clamp(psi, 0.0, 1.0).view(-1, 1)
         return elasticity_function.mul(grad_output), torch.mean(torch.abs(grad_output), 1)
 
 class bias_only_elastic(torch.autograd.Function):
@@ -56,7 +56,7 @@ class bias_only_elastic(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         psi, = ctx.saved_variables
-        elasticity_function = torch.clamp(1.0*torch.abs(psi), 0.0, 1.0)
+        elasticity_function = 1.0 -torch.clamp(psi, 0.0, 1.0)
         return elasticity_function.mul(grad_output), torch.abs(grad_output)
 
 class weight_only_elasticity(torch.nn.modules.Module):
@@ -66,7 +66,7 @@ class weight_only_elasticity(torch.nn.modules.Module):
         super(weight_only_elasticity, self).__init__()
         self.feature_out = feature_out
 
-        psi_init = torch.nn.init.uniform(torch.Tensor(feature_out), a=1.0, b=3.0)
+        psi_init = torch.nn.init.uniform(torch.Tensor(feature_out), a=0.0, b=0.10)
         self.psi = torch.nn.parameter.Parameter(psi_init)
 
         self.elastic = weight_only_elastic if not bias else bias_only_elastic
@@ -136,14 +136,11 @@ class OptimizeElasticity(Optimizer):
         for param in params:
             if param.grad is None: 
                 raise ValueError("Param has a value of None")
+            gamma_ = torch.tanh(param.data)*(1 - gamma) + gamma
+            
             d_p = param.grad.data
             size = d_p.size()
-            param.data.mul_(gamma)
-            try:
-                param.data.add_(d_p.mul_(lr))
-            except RuntimeError:
-                print(param.data.size(), d_p.size())
-                raise RuntimeError
-
+            param.data.mul_(gamma_)
+            param.data.add_(d_p.mul_(1.0 - gamma_))
 
         return None
