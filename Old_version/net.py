@@ -75,9 +75,9 @@ class ElephantNet2(nn.Module):
     def __init__(self):
         super(ElephantNet2, self).__init__()
         
-        self.fc1 = elastic_linear(28 * 28, 512)
-        self.fc2 = elastic_linear(512, 256)
-        self.fc3 = elastic_linear(256, 128)
+        self.fc1 = elastic_linear(28 * 28, 256)
+        self.fc2 = elastic_linear(256, 128)
+        self.fc3 = elastic_linear(128, 128)
         self.fc4 = elastic_linear(128, 10)
         
         self.done_training = False
@@ -109,28 +109,25 @@ def data_generator(**kwargs):
         ])),
         batch_size=BATCH_SIZE, shuffle=False, **kwargs)
 
-    train_and_test_classes = []
-    for loader in (train_loader, test_loader):
-        classes = {}
+    classes = {}
 
-        data, target = next(iter(loader))
-        indices = torch.from_numpy(np.argsort(target.numpy()))
-        length = target.size()[0] // 10
+    data, target = next(iter(train_loader))
+    indices = torch.from_numpy(np.argsort(target.numpy()))
+    length = target.size()[0] // 10
 
-        begin = 0
+    begin = 0
 
-        for i in range(10):
-            end = (torch.sum(target == i)) + begin
-            classes[i] = (data[indices[begin:end]],
-                            target[indices[begin:end]])
-            begin = end
+    for i in range(10):
+        end = (torch.sum(target == i)) + begin
+        classes[i] = (data[indices[begin:end]],
+                      target[indices[begin:end]])
+        begin = end
 
-        train_and_test_classes.append(classes)
+    return classes
 
-    return train_and_test_classes
 
 def train():
-    classes, = data_generator()
+    classes = data_generator()
     model = ElephantNet2()
 
     model.cuda()
@@ -138,7 +135,7 @@ def train():
     neuron_weights = (param for name, param in model.named_parameters() if not name.endswith("psi"))
     elasticity_values = (param for name, param in model.named_parameters() if name.endswith("psi"))
 
-    eOptimizer = OptimizeElasticity(elasticity_values, gamma=0.95, lr=0.01)
+    eOptimizer = OptimizeElasticity(elasticity_values, gamma=0.90, lr=0.05)
     optimizer = optim.SGD(neuron_weights, lr=LR, momentum=0.5, nesterov=True)
 
     label_arange = torch.arange(0, 10)
@@ -148,8 +145,8 @@ def train():
     colors = ["b", "r", "g", "c", "m"]
     for bonus, addition in enumerate((2, 4, 6, 8, 10, 2, 4, 6, 8, 10)):
 
-        if bonus < 6:
-            psi_list = [psi for name, psi in model.named_parameters() if name.endswith("weight.psi")]
+        if bonus < -6:
+            psi_list = [psi.view(-1) for name, psi in model.named_parameters() if name.endswith("weight.psi")]
             psi_histogram(psi_list)
 
         model.done_training = bonus > 4
@@ -177,7 +174,7 @@ def train():
                 # eOptimizer.step(is_abs=True)
                 output = model(data)
                 one_hot_labels = target_gpu.view(-1, 1).float() == label_arange.expand(target_gpu.size()[0], 10)
-                auxiliary_loss = torch.exp(-0.1*loss.view(-1, 1))*5.0
+                auxiliary_loss = torch.exp(-1.0*loss.view(-1, 1))*5.0
                 output.backward(one_hot_labels.float().cuda()*(auxiliary_loss.data))
                 eOptimizer.step(is_abs=True)
             
@@ -289,27 +286,6 @@ def psi_histogram(psi_list):
     timer.add_callback(close_event)
     timer.start()
     plt.show()
-
-def multiple_tasks():
-    
-    colors = ["b", "r", "g", "c", "m"]
-    for bonus, addition in enumerate((2, 4, 6, 8, 10, 2, 4, 6, 8, 10)):
-
-        if bonus < 6:
-            psi_list = [psi for name, psi in model.named_parameters() if name.endswith("weight.psi")]
-            psi_histogram(psi_list)
-
-        model.done_training = bonus > 4
-        for i in range(ITERATION):
-            data = torch.from_numpy(np.zeros((BATCH_SIZE, 1, 28, 28)))
-            target = torch.from_numpy(np.zeros((BATCH_SIZE), dtype=np.int32))
-            for j in range(2):
-                j = j + addition - 2
-                indices = torch.from_numpy(np.random.randint(
-                    0, classes[j][1].size()[0], BATCH_SIZE // 2)).long()
-                data[(j%2) * (BATCH_SIZE // 2):((j%2) + 1) * (BATCH_SIZE // 2)] = classes[j][0][indices]
-                target[(j%2) * (BATCH_SIZE // 2):((j%2) + 1) * (BATCH_SIZE // 2)] = classes[j][1][indices]
-
 
 
 

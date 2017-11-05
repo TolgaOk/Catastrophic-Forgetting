@@ -1,13 +1,13 @@
-import numpy
+import numpy as np
 import torch
+from torchvision import datasets, transforms
 
 class MnistTasks(object):
 
     def __init__(self):
         self.train_loader, self.test_loader = self.load_data()
 
-
-    def load_data(self):
+    def load_data(self, **kwargs):
 
         train_loader = torch.utils.data.DataLoader(
             datasets.MNIST('../data', train=True, download=True,
@@ -53,16 +53,16 @@ class MnistTasks(object):
 
         return train_and_test_classes
 
-    def heterogen_batchs(self, n_tasks, classes, iterations=400, batch_size=128):
+    def heterogen_batches(self, n_tasks, classes, iterations=400, batch_size=128):
         
-        assert n_tasks > 5 or n_tasks < 2, "Number of tasks must be in the range of (2, 5)"
-        colors = (0, 2, 4, 6, 8)
+        assert n_tasks > 1 or n_tasks < 6, "Number of tasks must be in the range of (2, 5)"
+        labels = (0, 2, 4, 6, 8)
         
-        for bonus, addition in enumerate(colors[:n_tasks]):
+        for bonus, addition in enumerate(labels[:n_tasks]):
 
             for i in range(iterations):
                 data = torch.zeros(batch_size, 1, 28, 28)
-                target = torch.IntTensor(batch_size).zero_()
+                target = torch.LongTensor(batch_size).zero_()
                 for j in range(2):
                     j = j + addition
                     indices = torch.from_numpy(np.random.randint(

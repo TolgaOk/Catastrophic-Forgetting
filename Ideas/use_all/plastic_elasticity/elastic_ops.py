@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch.optim.optimizer import Optimizer
 import numpy as np
 
@@ -61,12 +62,11 @@ class bias_only_elastic(torch.autograd.Function):
 
 class weight_only_elasticity(torch.nn.modules.Module):
 
-    def __init__(self, feature_out, bias=False):
+    def __init__(self, parameter_size, bias=False):
 
         super(weight_only_elasticity, self).__init__()
-        self.feature_out = feature_out
 
-        psi_init = torch.nn.init.uniform(torch.Tensor(feature_out), a=0.0, b=0.10)
+        psi_init = torch.nn.init.uniform(torch.Tensor(*parameter_size), a=0.0, b=0.10)
         self.psi = torch.nn.parameter.Parameter(psi_init)
 
         self.elastic = weight_only_elastic if not bias else bias_only_elastic
@@ -88,8 +88,8 @@ class elastic_linear(torch.nn.modules.Module):
         bias_init = torch.nn.init.uniform(torch.Tensor(feature_out), a=-0.03, b=0.03)
         self.bias = torch.nn.parameter.Parameter(bias_init)
 
-        self.elastic_weight = weight_only_elasticity(feature_out)
-        self.elastic_bias = weight_only_elasticity(feature_out, bias=True)
+        self.elastic_weight = weight_only_elasticity(weight_init.size(), bias=True)
+        self.elastic_bias = weight_only_elasticity((feature_out,), bias=True)
 
     def forward(self, input):
 

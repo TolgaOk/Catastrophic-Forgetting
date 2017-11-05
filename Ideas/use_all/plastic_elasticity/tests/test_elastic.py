@@ -1,4 +1,4 @@
-from elasticity_op import elastic, elasticity, OptimizeElasticity, relevance_elastic, elastic_linear
+from ..elasticity_ops import elastic, elasticity, OptimizeElasticity, relevance_elastic, elastic_linear
 import torch
 
 
@@ -61,8 +61,8 @@ def test_weigt_only_elastic():
     out.backward(incomming_grad)
 
     print(model.fc.elastic_weight.psi.grad)
-    print(model.fc.weight.grad)
-    print(model.fc.elastic_bias.psi.grad)
+    print(model.fc.elastic_weight.psi.data)
+    print(model.fc.weight.data)
 
 if __name__ == "__main__":
     # test_elastic()
