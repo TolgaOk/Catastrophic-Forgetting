@@ -2,7 +2,22 @@ import numpy as np
 import torch
 from torchvision import datasets, transforms
 
+
 class MnistTasks(object):
+    """ Mnist tasks for testing catastorphic forgetting. There are two tests,
+    Non-homogenous batch test and permutated tasks test.
+        Methods:
+
+            - heterogen_batches: This method returns an generator which yields
+        data and target batches. Labels are divided into 5 groups (0-1, 2-3, ...).
+        Number of tasks argument decides how many of these 5 groups are going to
+        be used and classes argument is to choose training or testing data. Classes
+        argument can be provided by "get_classes" method. Yielded batches are of the
+        size as batch_size argument and same group of labels are going to be yielded
+        for number of iterations.
+
+            -permutated_tasks: Not Implemented yet!
+    """
 
     def __init__(self):
         self.train_loader, self.test_loader = self.load_data()
@@ -11,10 +26,10 @@ class MnistTasks(object):
 
         train_loader = torch.utils.data.DataLoader(
             datasets.MNIST('../data', train=True, download=True,
-                        transform=transforms.Compose([
-                            transforms.ToTensor(),
-                            transforms.Normalize((0.1307,), (0.3081,))
-                        ])),
+                           transform=transforms.Compose([
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.1307,), (0.3081,))
+                           ])),
             batch_size=None, shuffle=False, **kwargs)
         test_loader = torch.utils.data.DataLoader(
             datasets.MNIST('../data', train=False, transform=transforms.Compose([
@@ -31,7 +46,8 @@ class MnistTasks(object):
                 train_loader = self.train_loader
                 test_loader = self.test_loader
             except AttributeError:
-                raise ValueError("Argument: <train_loader> or <test_loader> must be defined.")
+                raise ValueError(
+                    "Argument: <train_loader> or <test_loader> must be defined.")
 
         train_and_test_classes = []
         for loader in (train_loader, test_loader):
@@ -46,7 +62,7 @@ class MnistTasks(object):
             for i in range(10):
                 end = (torch.sum(target == i)) + begin
                 classes[i] = (data[indices[begin:end]],
-                                target[indices[begin:end]])
+                              target[indices[begin:end]])
                 begin = end
 
             train_and_test_classes.append(classes)
@@ -54,10 +70,10 @@ class MnistTasks(object):
         return train_and_test_classes
 
     def heterogen_batches(self, n_tasks, classes, iterations=400, batch_size=128):
-        
+
         assert n_tasks > 1 or n_tasks < 6, "Number of tasks must be in the range of (2, 5)"
         labels = (0, 2, 4, 6, 8)
-        
+
         for bonus, addition in enumerate(labels[:n_tasks]):
 
             for i in range(iterations):
@@ -67,8 +83,10 @@ class MnistTasks(object):
                     j = j + addition
                     indices = torch.from_numpy(np.random.randint(
                         0, classes[j][1].size()[0], batch_size // 2)).long()
-                    data[(j%2) * (batch_size // 2):((j%2) + 1) * (batch_size // 2)] = classes[j][0][indices]
-                    target[(j%2) * (batch_size // 2):((j%2) + 1) * (batch_size // 2)] = classes[j][1][indices]
+                    data[(j % 2) * (batch_size // 2):((j % 2) + 1) *
+                         (batch_size // 2)] = classes[j][0][indices]
+                    target[(j % 2) * (batch_size // 2):((j % 2) + 1)
+                           * (batch_size // 2)] = classes[j][1][indices]
 
                 yield data, target
-
+    # TODO:Permutated batch tasks
