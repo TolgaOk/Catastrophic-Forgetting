@@ -106,9 +106,8 @@ class ElephantNet2(nn.Module):
         output = self(input)
         self.eOptimizer.zero_grad()
         label_arange = torch.arange(0, 10)
-        one_hot_labels = target_raw.view(-1, 1).float(
-        ) == label_arange.expand(target_raw.size()[0], 10)
-        auxiliary_loss = torch.exp(-1.0 * loss.view(-1, 1)) * 5.0
+        one_hot_labels = target_raw.view(-1, 1).float() == label_arange.expand(target_raw.size()[0], 10)
+        auxiliary_loss = torch.exp(-1.0 * loss.view(-1, 1)) * 7.0
         output.backward(one_hot_labels.float().cuda() * (auxiliary_loss.data))
         self.eOptimizer.step(is_abs=True)
 

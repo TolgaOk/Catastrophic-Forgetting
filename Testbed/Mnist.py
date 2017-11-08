@@ -81,11 +81,11 @@ class MnistTasks(object):
                 target = torch.LongTensor(batch_size).zero_()
                 for j in range(2):
                     j = j + addition
-                    indices = torch.from_numpy(np.random.randint(
+                    indices = torch.from_numpy(np.random.randint(                   \
                         0, classes[j][1].size()[0], batch_size // 2)).long()
-                    data[(j % 2) * (batch_size // 2):((j % 2) + 1) *
+                    data[(j % 2) * (batch_size // 2):((j % 2) + 1) *                \
                          (batch_size // 2)] = classes[j][0][indices]
-                    target[(j % 2) * (batch_size // 2):((j % 2) + 1)
+                    target[(j % 2) * (batch_size // 2):((j % 2) + 1)                \
                            * (batch_size // 2)] = classes[j][1][indices]
 
                 yield data, target
